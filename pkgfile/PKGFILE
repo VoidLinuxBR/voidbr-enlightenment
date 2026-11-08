@@ -24,6 +24,9 @@ depends=(
 	terminology                 # Terminal padrão (favorito na barra)
 	xfce4-terminal              # Terminal alternativo
 	rage                        # Player de vídeo/áudio EFL
+	evisum                      # Monitor do sistema EFL (pacote VoidBR)
+	ephoto                      # Visualizador de imagens EFL (pacote VoidBR)
+	ecrire                      # Editor de texto EFL (pacote VoidBR)
 	conky                       # Monitor na área de trabalho (~/.config/conky/conky.conf)
 	network-manager-applet      # Rede na bandeja (o E não tem módulo do NetworkManager)
 	pavucontrol                 # Mixer completo (o módulo mixer do E cobre o básico)
