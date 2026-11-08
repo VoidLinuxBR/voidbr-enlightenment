@@ -1,11 +1,12 @@
 # Maintainer: Vilmar Catafesta <vcatafesta@gmail.com>
 
 pkgname=voidbr-enlightenment
-pkgdesc="VoidBR ENLIGHTENMENT Meta Package"
+pkgdesc="VoidBR Enlightenment Meta Package"
 pkgver=$(date +%Y%m%d)
 pkgrel=$(date +%H%M)
-provides=()
-replaces=()
+provides=()  # "eu SOU o $pkgname pkg1, pra quem depender deles"
+replaces=()  # "remove o pkg1 pkg2 antigo automaticamente quando eu instalar"
+conflicts=() # "nunca me deixe coexistir com o pkg1 pkg2 original"
 arch=('any')
 license=('MIT')
 #url="ssh://git@github.com/voidlinuxbr/${pkgname}"
@@ -14,21 +15,71 @@ source=("git+${url}.git")
 md5sums=('SKIP')
 makedepends=()
 depends=(
-	voidbr-base-common
-	voidbr-xorg-common
-	voidbr-gui-common
-	#
-	enlightenment
-	efl
-	rage
-	terminology
-	exquisite
-	connman
-	#
-	voidbr-enlightenment-config
-	nwg-bar       # GTK3-based button bar for wlroots-based compositors
-	nwg-launchers # GTK-based launchers for window managers
-	nwg-look      # GTK settings editor adapted to work in the wlroots environment
+	# --- Base do VoidBR ---
+	voidbr-base-common # Base: base-config, utils, NetworkManager, firmware etc.
+	voidbr-gui-common  # Apps e login manager do voidbr-enlightenment antigo (quem atualiza não perde nada)
+
+	# --- Enlightenment ---
+	enlightenment               # Desktop (puxa o efl e o xorg-server-xwayland da sessão Wayland)
+	terminology                 # Terminal padrão (favorito na barra)
+	xfce4-terminal              # Terminal alternativo
+	rage                        # Player de vídeo/áudio EFL
+	conky                       # Monitor na área de trabalho (~/.config/conky/conky.conf)
+	network-manager-applet      # Rede na bandeja (o E não tem módulo do NetworkManager)
+	pavucontrol                 # Mixer completo (o módulo mixer do E cobre o básico)
+	voidbr-enlightenment-config # Skel e padrões (perfil VoidBR, paleta Tokyo Night, wallpaper)
+
+	# --- Visual ---
+	voidbr-tokyo-theme     # Tokyonight-Dark-Theme, Tokyonight-Dark-Icons (GTK e ícones do E)
+	voidbr-wallpapers      # Papel de parede (voidbr-wallpaper.avif)
+	adwaita-icon-theme     # Ícones de reserva (os Tokyonight herdam de "gnome")
+	cantarell-fonts        # Fonte da interface GTK (Cantarell 11)
+	dejavu-fonts-ttf       # Fonte monoespaçada (DejaVu Sans Mono 10)
+	noto-fonts-ttf         # Fonte do conky
+	noto-fonts-emoji
+	nerd-fonts-symbols-ttf
+
+	# --- Sessão e login ---
+	sddm               # Login (o post_install ativa o sddm)
+	voidbr-sddm-themes # Temas do sddm VoidBR
+	dbus-elogind
+	polkit-elogind
+	gnome-keyring      # Senhas (navegador, Wi-Fi)
+
+	# --- X11 (sessão padrão do Enlightenment) ---
+	xorg
+	mesa-dri
+	mesa-nouveau-dri
+	mesa-vaapi
+
+	# --- Wayland (sessão experimental do Enlightenment) ---
+	xdg-desktop-portal
+	xdg-desktop-portal-gtk # Seletor de arquivos e captura de tela para apps GTK/Flatpak
+
+	# --- Áudio (PipeWire) ---
+	pipewire
+	wireplumber
+	alsa-pipewire
+	libjack-pipewire
+	libspa-bluetooth # Áudio Bluetooth
+	alsa-utils
+
+	# --- Rede, Bluetooth e discos ---
+	bluez   # Módulo Bluetooth do E (ebluez5)
+	udisks2 # Montar pendrives no gerenciador de arquivos do E
+
+	# --- Apps ---
+	firefox            # Navegador padrão e favorito na barra
+	firefox-i18n-pt-BR
+	octoxbps
+	gparted
+	mpv
+	chili-iso2usb
+	voidbr-iso-writer
+	voidbr-webapps
+	voidbr-ai         # Assistente de IA do VoidBR (favorito na barra)
+	xdg-utils
+	xdg-user-dirs
 )
 backup=()
 
@@ -76,13 +127,52 @@ post_install() {
 	fi
 
 	if [ -z "${VOIDBR_INSTALLER:-}" ]; then
-		if [ -n "$user" ]; then
-			log "Aplicando configuracoes para $user"
-			/usr/local/bin/voidbr-copy-skel-inc --user "$user" --force --quiet || true
+		# A cópia do skel para o usuário fica no post_install do voidbr-enlightenment-config,
+		# que é o pacote que traz o skel (assim ela roda também quando só ele é atualizado).
+
+		# Login manager: ativo = tem link em /var/service (instalado só em /etc/sv não conta).
+		# Mantém o da sessão gráfica aberta (para não derrubar quem está logado); se não
+		# houver sessão gráfica, mantém o primeiro ativo na ordem abaixo. Os demais ativos
+		# são desativados. Se nenhum estiver ativo, ativa o sddm.
+		local s srv dm manter=""
+		if command -v loginctl >/dev/null 2>&1; then
+			for s in $(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}'); do
+				[ "$(loginctl show-session "$s" -p Class --value 2>/dev/null)" = user ] || continue
+				case "$(loginctl show-session "$s" -p Type --value 2>/dev/null)" in
+				x11 | wayland) ;;
+				*) continue ;;
+				esac
+				srv=$(loginctl show-session "$s" -p Service --value 2>/dev/null)
+				case "$srv" in gdm-*) srv=gdm ;; esac
+				if [ -n "$srv" ] && [ -x "/var/service/$srv/run" ]; then
+					manter="$srv"
+					log "Sessão gráfica aberta pelo login manager '$srv'"
+					break
+				fi
+			done
 		fi
 
-		log "Ativando serviços"
-		/usr/local/bin/vservice add sddm --quiet || true
+		if [ -z "$manter" ]; then
+			for dm in sddm lightdm gdm greetd lxdm; do
+				if [ -x "/var/service/$dm/run" ]; then
+					manter="$dm"
+					break
+				fi
+			done
+		fi
+
+		if [ -z "$manter" ]; then
+			log "Ativando o sddm"
+			/usr/local/bin/vservice add sddm --quiet || true
+		else
+			log "Login manager '$manter' ja ativo"
+			for dm in sddm lightdm gdm greetd lxdm; do
+				[ "$dm" = "$manter" ] && continue
+				[ -x "/var/service/$dm/run" ] || continue
+				log "Desativando o login manager '$dm' (fica o '$manter')"
+				/usr/local/bin/vservice rm "$dm" --quiet || true
+			done
+		fi
 	fi
 
 	log "${YELLOW}Instalação completa. Reinicie o sistema...${RESET}"
