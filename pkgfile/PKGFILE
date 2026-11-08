@@ -41,6 +41,7 @@ depends=(
 
 	# --- Sessão e login ---
 	sddm               # Login (o post_install ativa o sddm)
+	acpid              # Eventos ACPI (tampa, botões); sem ele o E mostra "Erro de ACPI" (o post_install ativa)
 	voidbr-sddm-themes # Temas do sddm VoidBR
 	dbus-elogind
 	polkit-elogind
@@ -119,6 +120,17 @@ post_install() {
 		log "Finalizando upgrade"
 	else
 		log "Finalizando instalação"
+	fi
+
+	# acpid: o Enlightenment recebe dele os eventos de ACPI (sem ele mostra "Erro de ACPI").
+	# Na ISO e no instalador (chroot) o /var/service não existe e o vservice não funciona:
+	# ativa direto no runsvdir padrão, como o voidbr-base-common faz.
+	if [ -n "${MKISO_BUILD:-}" ] || [ -n "${VOIDBR_INSTALLER:-}" ]; then
+		log "Ativando o acpid (chroot)"
+		ln -snf /etc/sv/acpid /etc/runit/runsvdir/default/acpid
+	else
+		log "Ativando o acpid"
+		/usr/local/bin/vservice add acpid --quiet || true
 	fi
 
 	if [ -n "${MKISO_BUILD:-}" ]; then
