@@ -31,6 +31,8 @@ depends=(
 	network-manager-applet      # Rede na bandeja (o E não tem módulo do NetworkManager)
 	pavucontrol                 # Mixer completo (o módulo mixer do E cobre o básico)
 	voidbr-enlightenment-config # Skel e padrões (perfil VoidBR, paleta Tokyo Night, wallpaper)
+	python3-gobject             # voidbr-enlightenment-tweaks (GTK4 + PyGObject)
+	gtk4
 
 	# --- Visual ---
 	voidbr-tokyo-theme     # Tokyonight-Dark-Theme, Tokyonight-Dark-Icons (GTK e ícones do E)
