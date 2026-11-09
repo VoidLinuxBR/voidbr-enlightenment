@@ -20,7 +20,7 @@ depends=(
 	voidbr-gui-common  # Apps e login manager do voidbr-enlightenment antigo (quem atualiza não perde nada)
 
 	# --- Enlightenment ---
-	enlightenment               # Desktop (puxa o efl e o xorg-server-xwayland da sessão Wayland)
+	'enlightenment>=0.28.0_2'   # Desktop, com o módulo voidbr (central de controle) e o bloqueio VoidBR
 	terminology                 # Terminal padrão (favorito na barra)
 	xfce4-terminal              # Terminal alternativo
 	rage                        # Player de vídeo/áudio EFL
@@ -30,6 +30,8 @@ depends=(
 	conky                       # Monitor na área de trabalho (~/.config/conky/conky.conf)
 	network-manager-applet      # Rede na bandeja (o E não tem módulo do NetworkManager)
 	pavucontrol                 # Mixer completo (o módulo mixer do E cobre o básico)
+	wireplumber                 # wpctl: volume na central de controle do módulo voidbr
+	bluez                       # bluetoothctl: liga/desliga o Bluetooth na central de controle
 	voidbr-enlightenment-config # Skel e padrões (perfil VoidBR, paleta Tokyo Night, wallpaper)
 	python3-gobject             # voidbr-enlightenment-tweaks (GTK4 + PyGObject)
 	gtk4
